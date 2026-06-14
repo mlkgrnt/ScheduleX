@@ -1,0 +1,36 @@
+# Build
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/app/release/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APKs and keys
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Versions (local backups)
+/versions/
+
+# Test and temp files
+.env.test
+.secrets/
+/test_*.py
+/test_*.png
+/ui.xml
+/ocr_raw_output.txt
+/paddleocr_vl_format.json
+
+# Route SDK (separate project)
+/route-sdk/
+
+# Misc
+*.log

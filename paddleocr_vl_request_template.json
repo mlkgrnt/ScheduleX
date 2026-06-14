@@ -1,0 +1,22 @@
+{
+  "model": "PaddlePaddle/PaddleOCR-VL-1.5",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "data:image/jpeg;base64,<BASE64_IMAGE_DATA>"
+          }
+        },
+        {
+          "type": "text",
+          "text": "请识别这张课表图片中的所有课程信息，包括课程名称、教师、地点、星期几、节次、周次。以JSON数组格式输出。"
+        }
+      ]
+    }
+  ],
+  "max_tokens": 4096,
+  "temperature": 0.1
+}
