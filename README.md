@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon.png" width="120" alt="ScheduleX" />
+</p>
+
 # ScheduleX
 
 > 一款开源、无广告、永久免费的 Android 课程表应用
