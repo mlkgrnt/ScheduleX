@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ScheduleX</string>
+    <string name="widget_today_course_description">无广告开源课程表，今日课程一目了然</string>
+    <string name="widget_wide_description">无广告开源课程表，今日+明日课程左右分栏</string>
+    <string name="widget_single_label">ScheduleX-小课表</string>
+    <string name="widget_wide_label">ScheduleX-大课表</string>
+</resources>

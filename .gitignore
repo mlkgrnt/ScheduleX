@@ -1,0 +1,41 @@
+# Build
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/app/release/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# APKs and keys
+*.apk
+*.aab
+*.jks
+*.keystore
+**/raw/api_key
+
+# Versions (local backups)
+/versions/
+
+# Test, temp, screenshots (root only)
+/*.png
+/*.py
+/*.txt
+/*.json
+!build.gradle.kts
+!settings.gradle.kts
+!gradle.properties
+
+# Route SDK
+/route-sdk/
+
+# Misc
+*.log
+.env
+.env.*
+.secrets/
+docs/PRD.md

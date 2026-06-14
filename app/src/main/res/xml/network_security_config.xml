@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 允许教务系统使用 HTTP（CAS SSO 重定向可能用 HTTP） -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">stu.edu.cn</domain>
+        <domain includeSubdomains="true">szu.edu.cn</domain>
+        <domain includeSubdomains="true">scut.edu.cn</domain>
+        <domain includeSubdomains="true">scnu.edu.cn</domain>
+        <domain includeSubdomains="true">gdut.edu.cn</domain>
+        <domain includeSubdomains="true">gzhu.edu.cn</domain>
+        <domain includeSubdomains="true">sysu.edu.cn</domain>
+        <domain includeSubdomains="true">jnu.edu.cn</domain>
+        <domain includeSubdomains="true">scau.edu.cn</domain>
+        <domain includeSubdomains="true">jyu.edu.cn</domain>
+        <domain includeSubdomains="true">hstc.edu.cn</domain>
+        <domain includeSubdomains="true">sgu.edu.cn</domain>
+        <domain includeSubdomains="true">zhjnu.edu.cn</domain>
+    </domain-config>
+</network-security-config>
