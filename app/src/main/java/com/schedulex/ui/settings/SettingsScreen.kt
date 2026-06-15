@@ -1,5 +1,6 @@
 package com.schedulex.ui.settings
 
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -163,6 +164,23 @@ fun SettingsScreen(
                 supportingContent = { Text("版本 ${BuildConfig.VERSION_NAME}") },
                 leadingContent = {
                     Icon(Icons.Default.Info, contentDescription = null)
+                }
+            )
+
+            ListItem(
+                headlineContent = { Text("GitHub") },
+                supportingContent = { Text("开源仓库 · 欢迎 Star & PR") },
+                leadingContent = {
+                    Icon(Icons.Default.Code, contentDescription = null)
+                },
+                trailingContent = {
+                    Icon(Icons.AutoMirrored.Filled.NavigateNext, contentDescription = null)
+                },
+                modifier = Modifier.clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(
+                        "https://github.com/mlkgrnt/ScheduleX"
+                    ))
+                    context.startActivity(intent)
                 }
             )
         }

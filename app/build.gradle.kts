@@ -13,8 +13,8 @@ android {
         applicationId = "com.schedulex"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.0.0-alpha1"
+        versionCode = 76
+        versionName = "0.7.6"
     }
 
     buildTypes {

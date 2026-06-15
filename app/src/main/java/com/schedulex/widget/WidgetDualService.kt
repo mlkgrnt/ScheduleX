@@ -60,6 +60,12 @@ class WidgetDualFactory(
         views.setTextColor(R.id.item_course_location, if (isDark) WIDGET_LOCATION_DARK else WIDGET_LOCATION_LIGHT)
         views.setInt(R.id.item_root, "setBackgroundColor", if (isDark) WIDGET_BG_DARK else WIDGET_BG_LIGHT)
 
+        // 点击列表项打开APP（配合 setPendingIntentTemplate 使用）
+        val fillInIntent = Intent().apply {
+            putExtra("click", true)
+        }
+        views.setOnClickFillInIntent(R.id.item_root, fillInIntent)
+
         return views
     }
 

@@ -2,6 +2,7 @@ package com.schedulex.widget
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -17,6 +18,18 @@ class WidgetWideReceiver : AppWidgetProvider() {
     override fun onUpdate(ctx: Context, mgr: AppWidgetManager, ids: IntArray) {
         for (id in ids) update(ctx, mgr, id)
         MidnightReceiver.scheduleNext(ctx)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        // 系统主题变化时刷新小组件深色模式
+        if (intent.action == Intent.ACTION_CONFIGURATION_CHANGED) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, WidgetWideReceiver::class.java))
+            if (ids.isNotEmpty()) {
+                for (id in ids) update(context, mgr, id)
+            }
+        }
     }
 
     override fun onEnabled(context: Context) {
@@ -62,11 +75,16 @@ class WidgetWideReceiver : AppWidgetProvider() {
             rightIntent.setData(Uri.parse("widget://dual/right/$id"))
             views.setRemoteAdapter(R.id.list_right, rightIntent)
 
-            val pi = android.app.PendingIntent.getActivity(
+            // 点击小组件打开APP：双保险
+            // 1. root 上的 PendingIntent — 空列表时也能点击打开
+            // 2. ListView 上的 PendingIntentTemplate — 有课程时点击课程项也能打开
+            val appIntent = android.app.PendingIntent.getActivity(
                 ctx, id, Intent(ctx, com.schedulex.ui.MainActivity::class.java),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_root, pi)
+            views.setOnClickPendingIntent(R.id.widget_root, appIntent)
+            views.setPendingIntentTemplate(R.id.list_left, appIntent)
+            views.setPendingIntentTemplate(R.id.list_right, appIntent)
 
             mgr.updateAppWidget(id, views)
             mgr.notifyAppWidgetViewDataChanged(id, R.id.list_left)
@@ -78,7 +96,7 @@ class WidgetWideReceiver : AppWidgetProvider() {
             i.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             val mgr = AppWidgetManager.getInstance(ctx)
             i.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS,
-                mgr.getAppWidgetIds(android.content.ComponentName(ctx, WidgetWideReceiver::class.java)))
+                mgr.getAppWidgetIds(ComponentName(ctx, WidgetWideReceiver::class.java)))
             ctx.sendBroadcast(i)
         }
     }

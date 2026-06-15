@@ -2,6 +2,7 @@ package com.schedulex.widget
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -27,6 +28,18 @@ class WidgetSingleReceiver : AppWidgetProvider() {
             updateWidget(context, appWidgetManager, appWidgetId)
         }
         MidnightReceiver.scheduleNext(context)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        // 系统主题变化时刷新小组件深色模式
+        if (intent.action == Intent.ACTION_CONFIGURATION_CHANGED) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, WidgetSingleReceiver::class.java))
+            if (ids.isNotEmpty()) {
+                for (id in ids) updateWidget(context, mgr, id)
+            }
+        }
     }
 
     override fun onEnabled(context: Context) {
@@ -75,12 +88,16 @@ class WidgetSingleReceiver : AppWidgetProvider() {
             views.setRemoteAdapter(R.id.widget_list_view, intent)
             views.setEmptyView(R.id.widget_list_view, R.id.widget_empty_text)
 
-            val clickIntent = Intent(context, com.schedulex.ui.MainActivity::class.java)
-            val pendingIntent = android.app.PendingIntent.getActivity(
-                context, 0, clickIntent,
+            // 点击小组件打开APP：双保险
+            // 1. root 上的 PendingIntent — 空列表时也能点击打开
+            // 2. ListView 上的 PendingIntentTemplate — 有课程时点击课程项也能打开
+            val appIntent = android.app.PendingIntent.getActivity(
+                context, appWidgetId,
+                Intent(context, com.schedulex.ui.MainActivity::class.java),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.widget_root, pendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_root, appIntent)
+            views.setPendingIntentTemplate(R.id.widget_list_view, appIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list_view)
@@ -91,7 +108,7 @@ class WidgetSingleReceiver : AppWidgetProvider() {
             intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(
-                android.content.ComponentName(context, WidgetSingleReceiver::class.java)
+                ComponentName(context, WidgetSingleReceiver::class.java)
             )
             intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             context.sendBroadcast(intent)
