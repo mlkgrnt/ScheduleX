@@ -7,7 +7,9 @@
 > 一款开源、无广告、永久免费的 Android 课程表应用
 
 <p align="center">
-  <img src="docs/preview.jpg" width="800" alt="ScheduleX 预览" />
+  <img src="docs/schedule_preview.jpg" width="280" alt="课表界面" />
+  &nbsp;&nbsp;
+  <img src="docs/widget_preview.jpg" width="280" alt="桌面小组件" />
 </p>
 
 ## ✨ 特性
