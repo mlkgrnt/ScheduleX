@@ -188,7 +188,7 @@ fun HomeScreen(
         }
 
         // 内容区：weight(1f) 填满剩余空间
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             WeekSelector(
                 currentWeek = currentWeek,
                 onWeekChange = { currentWeek = it },
@@ -198,11 +198,10 @@ fun HomeScreen(
             if (courses.isEmpty()) {
                 EmptyScheduleView(onNavigateToAddCourse)
             } else {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .verticalScroll(rememberScrollState())
                 ) {
                     ScheduleGrid(
                         blocks = slotBlocks,
