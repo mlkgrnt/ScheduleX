@@ -23,6 +23,9 @@ import com.schedulex.ScheduleXApp
 import com.schedulex.data.model.Course
 import com.schedulex.data.model.TimeSlot
 import com.schedulex.data.model.WeekType
+import com.schedulex.data.model.ScheduleSettings
+import com.schedulex.data.model.scheduleDataStore
+import com.schedulex.data.model.loadScheduleSettings
 import com.schedulex.widget.refreshAllWidgets
 import kotlinx.coroutines.launch
 
@@ -56,8 +59,15 @@ fun CourseListScreen(
     onNavigateToAdd: () -> Unit
 ) {
     val app = LocalContext.current.applicationContext as ScheduleXApp
-    val courses by app.courseRepository.getAllCourses().collectAsState(initial = emptyList())
-    val allTimeSlots by app.courseRepository.getAllTimeSlots().collectAsState(initial = emptyList())
+    val context = LocalContext.current
+    val dataStore = context.scheduleDataStore
+    var scheduleSettings by remember { mutableStateOf(ScheduleSettings()) }
+    LaunchedEffect(Unit) {
+        scheduleSettings = loadScheduleSettings(dataStore)
+    }
+    val activeScheduleId = scheduleSettings.activeScheduleId
+    val courses by app.courseRepository.getCoursesBySchedule(activeScheduleId).collectAsState(initial = emptyList())
+    val allTimeSlots by app.courseRepository.getTimeSlotsBySchedule(activeScheduleId).collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
     // Group time slots by courseId
@@ -69,7 +79,26 @@ fun CourseListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("课程列表") })
+            Surface(
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "课程列表",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToAdd) {
@@ -194,6 +223,15 @@ private fun CourseListItem(
                 if (!course.teacher.isNullOrBlank()) {
                     Text(
                         text = course.teacher!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                // 显示上课地点（去重）
+                val locations = slots.mapNotNull { it.location?.takeIf { l -> l.isNotBlank() } }.distinct()
+                if (locations.isNotEmpty()) {
+                    Text(
+                        text = "📍 ${locations.joinToString("、")}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

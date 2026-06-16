@@ -20,9 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.schedulex.ScheduleXApp
-import com.schedulex.data.model.Course
-import com.schedulex.data.model.TimeSlot
-import com.schedulex.data.model.WeekType
+import com.schedulex.data.model.*
 import com.schedulex.llm.ParsedCourse
 import kotlinx.coroutines.launch
 import com.schedulex.widget.refreshAllWidgets
@@ -36,20 +34,25 @@ fun ImportPreviewScreen(
     val context = LocalContext.current
     val app = context.applicationContext as ScheduleXApp
     val scope = rememberCoroutineScope()
+    val dataStore = context.scheduleDataStore
 
-    // Read courses from app-level shared state (set by WebViewLoginScreen's import flow)
     var courses by remember { mutableStateOf(app.lastParsedCourses) }
     var selectedIndices by remember(courses) { mutableStateOf(courses.indices.toSet()) }
     var isImporting by remember { mutableStateOf(false) }
     var importResult by remember { mutableStateOf<String?>(null) }
 
-    // Check if there are existing courses in the database
-    var existingCourseCount by remember { mutableStateOf(0) }
-    var showOverwriteDialog by remember { mutableStateOf(false) }
+    // 检查当前课表是否有课程
+    var existingCourseCount by remember { mutableIntStateOf(0) }
+    var showImportModeDialog by remember { mutableStateOf(false) }
 
-    // Load existing course count
+    var scheduleSettings by remember { mutableStateOf(ScheduleSettings()) }
     LaunchedEffect(Unit) {
-        app.courseRepository.getAllCourses().collect { existing ->
+        scheduleSettings = loadScheduleSettings(dataStore)
+    }
+    val activeScheduleId = scheduleSettings.activeScheduleId
+
+    LaunchedEffect(activeScheduleId) {
+        app.courseRepository.getCoursesBySchedule(activeScheduleId).collect { existing ->
             existingCourseCount = existing.size
         }
     }
@@ -86,9 +89,7 @@ fun ImportPreviewScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("请返回重新提取", style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedButton(onClick = onNavigateBack) {
-                            Text("返回")
-                        }
+                        OutlinedButton(onClick = onNavigateBack) { Text("返回") }
                     }
                 }
                 return@Scaffold
@@ -143,7 +144,6 @@ fun ImportPreviewScreen(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.Top
                         ) {
-                            // Color indicator
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -160,7 +160,6 @@ fun ImportPreviewScreen(
 
                             Spacer(modifier = Modifier.width(12.dp))
 
-                            // Course info
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = course.name,
@@ -205,7 +204,6 @@ fun ImportPreviewScreen(
                                 }
                             }
 
-                            // Checkbox
                             Checkbox(
                                 checked = isSelected,
                                 onCheckedChange = { checked ->
@@ -243,10 +241,7 @@ fun ImportPreviewScreen(
             }
 
             // Bottom buttons
-            Surface(
-                tonalElevation = 3.dp,
-                shadowElevation = 8.dp
-            ) {
+            Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -259,18 +254,17 @@ fun ImportPreviewScreen(
                             onNavigateBack()
                         },
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Text("取消")
-                    }
+                    ) { Text("取消") }
                     Button(
                         onClick = {
                             if (existingCourseCount > 0) {
-                                showOverwriteDialog = true
+                                showImportModeDialog = true
                             } else {
+                                // 空课表，直接导入到当前课表
                                 isImporting = true
                                 scope.launch {
                                     val selected = selectedIndices.map { courses[it] }
-                                    val result = importCourses(selected, app, clearExisting = false)
+                                    val result = importCourses(selected, app, activeScheduleId, clearExisting = false)
                                     importResult = result
                                     isImporting = false
                                 }
@@ -296,28 +290,64 @@ fun ImportPreviewScreen(
         }
     }
 
-    // Overwrite confirmation dialog
-    if (showOverwriteDialog) {
+    // 覆盖 or 新建课表 对话框
+    if (showImportModeDialog) {
+        var newScheduleName by remember { mutableStateOf("") }
         AlertDialog(
-            onDismissRequest = { showOverwriteDialog = false },
-            title = { Text("覆盖现有课表") },
-            text = { Text("当前已有 $existingCourseCount 门课程，导入新课表将覆盖所有现有课程。确定继续吗？") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showOverwriteDialog = false
-                        isImporting = true
-                        scope.launch {
-                            val selected = selectedIndices.map { courses[it] }
-                            val result = importCourses(selected, app, clearExisting = true)
-                            importResult = result
-                            isImporting = false
-                        }
+            onDismissRequest = { showImportModeDialog = false },
+            title = { Text("导入方式") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("当前课表已有 $existingCourseCount 门课程，选择导入方式：")
+
+                    // 覆盖当前课表
+                    OutlinedButton(
+                        onClick = {
+                            showImportModeDialog = false
+                            isImporting = true
+                            scope.launch {
+                                val selected = selectedIndices.map { courses[it] }
+                                val result = importCourses(selected, app, activeScheduleId, clearExisting = true)
+                                importResult = result
+                                isImporting = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("覆盖当前课表")
                     }
-                ) { Text("确定覆盖") }
+
+                    // 新建课表导入
+                    OutlinedTextField(
+                        value = newScheduleName,
+                        onValueChange = { newScheduleName = it },
+                        label = { Text("新课表名称（留空自动生成）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        onClick = {
+                            showImportModeDialog = false
+                            isImporting = true
+                            scope.launch {
+                                val name = newScheduleName.trim().ifBlank { "导入课表 ${System.currentTimeMillis() % 10000}" }
+                                val newId = "schedule_${System.currentTimeMillis()}"
+                                createSchedule(dataStore, newId, name)
+                                val selected = selectedIndices.map { courses[it] }
+                                val result = importCourses(selected, app, newId, clearExisting = false)
+                                importResult = "已导入到「$name」\n$result"
+                                isImporting = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("新建课表并导入")
+                    }
+                }
             },
+            confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showOverwriteDialog = false }) { Text("取消") }
+                TextButton(onClick = { showImportModeDialog = false }) { Text("取消") }
             }
         )
     }
@@ -326,23 +356,18 @@ fun ImportPreviewScreen(
 private suspend fun importCourses(
     parsedCourses: List<ParsedCourse>,
     app: ScheduleXApp,
+    scheduleId: String,
     clearExisting: Boolean = false
 ): String {
     return try {
-        // Clear existing data if requested
         if (clearExisting) {
-            app.courseRepository.clearAllData()
+            app.courseRepository.clearScheduleData(scheduleId)
         }
 
-        // Filter to only valid courses
         val validCourses = parsedCourses.filter { it.isValid }
-        if (validCourses.isEmpty()) {
-            return "❌ 没有有效的课程数据"
-        }
+        if (validCourses.isEmpty()) return "❌ 没有有效的课程数据"
 
-        // Group by course name to merge time slots
         val grouped = validCourses.groupBy { it.name }
-
         var totalCourses = 0
         var totalSlots = 0
 
@@ -354,18 +379,18 @@ private suspend fun importCourses(
                 color = listOf(
                     "#4FC3F7", "#81C784", "#FFB74D", "#E57373",
                     "#BA68C8", "#4DB6AC", "#FFD54F", "#7986CB"
-                ).random()
+                ).random(),
+                scheduleId = scheduleId
             )
 
-            // Deduplicate time slots by (day, startPeriod, endPeriod)
             val uniqueSlots = slots.distinctBy { "${it.day}-${it.startPeriod}-${it.endPeriod}" }
-            
+
             val timeSlots = uniqueSlots.mapNotNull { slot ->
                 val day = slot.day ?: return@mapNotNull null
                 val startPeriod = slot.startPeriod ?: return@mapNotNull null
                 val endPeriod = slot.endPeriod ?: return@mapNotNull null
                 TimeSlot(
-                    courseId = 0, // Will be set by insertCourseWithTimeSlots
+                    courseId = 0,
                     day = day,
                     startPeriod = startPeriod,
                     endPeriod = endPeriod,
@@ -375,7 +400,8 @@ private suspend fun importCourses(
                         "odd" -> WeekType.ODD
                         "even" -> WeekType.EVEN
                         else -> WeekType.ALL
-                    }
+                    },
+                    scheduleId = scheduleId
                 )
             }
 
@@ -385,7 +411,6 @@ private suspend fun importCourses(
         }
 
         refreshAllWidgets(app)
-
         "✅ 导入成功！共 $totalCourses 门课程，$totalSlots 个时间安排"
     } catch (e: Exception) {
         "❌ 导入失败: ${e.message}"

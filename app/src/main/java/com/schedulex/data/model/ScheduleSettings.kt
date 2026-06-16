@@ -24,7 +24,9 @@ data class ScheduleSettings(
     val classDuration: Int = 45,          // 统一时长（useSameDuration=true时使用）
     val periodDurations: List<Int> = List(15) { 45 },  // 每节课独立时长（useSameDuration=false时使用）
     val weekAnchorDate: Long = 0L,  // 锚点：设置currentWeek时那周周一的时间戳
-    val themeMode: Int = 0  // 0=跟随系统, 1=浅色, 2=深色
+    val themeMode: Int = 0,  // 0=跟随系统, 1=浅色, 2=深色
+    val reminderMinutes: Int = 0,  // 课前提醒分钟数，0=关闭
+    val activeScheduleId: String = "default"  // 当前活跃的课表ID
 )
 
 object SchedulePrefs {
@@ -38,6 +40,9 @@ object SchedulePrefs {
     val PERIOD_DURATIONS = stringPreferencesKey("period_durations")
     val WEEK_ANCHOR_DATE = longPreferencesKey("week_anchor_date")
     val THEME_MODE = intPreferencesKey("theme_mode")
+    val REMINDER_MINUTES = intPreferencesKey("reminder_minutes")
+    val ACTIVE_SCHEDULE_ID = stringPreferencesKey("active_schedule_id")
+    val SCHEDULE_NAMES = stringPreferencesKey("schedule_names") // JSON: {"default":"我的课表","id2":"name2"}
 }
 
 fun defaultPeriodStarts(): List<Int> {
@@ -121,7 +126,9 @@ suspend fun loadScheduleSettings(dataStore: DataStore<Preferences>): ScheduleSet
         classDuration = prefs[SchedulePrefs.CLASS_DURATION] ?: 45,
         periodDurations = periodDurations,
         weekAnchorDate = prefs[SchedulePrefs.WEEK_ANCHOR_DATE] ?: 0L,
-        themeMode = prefs[SchedulePrefs.THEME_MODE] ?: 0
+        themeMode = prefs[SchedulePrefs.THEME_MODE] ?: 0,
+        reminderMinutes = prefs[SchedulePrefs.REMINDER_MINUTES] ?: 0,
+        activeScheduleId = prefs[SchedulePrefs.ACTIVE_SCHEDULE_ID] ?: "default"
     )
 }
 
@@ -137,6 +144,8 @@ suspend fun saveScheduleSettings(dataStore: DataStore<Preferences>, settings: Sc
         prefs[SchedulePrefs.PERIOD_DURATIONS] = settings.periodDurations.joinToString(",")
         prefs[SchedulePrefs.WEEK_ANCHOR_DATE] = settings.weekAnchorDate
         prefs[SchedulePrefs.THEME_MODE] = settings.themeMode
+        prefs[SchedulePrefs.REMINDER_MINUTES] = settings.reminderMinutes
+        prefs[SchedulePrefs.ACTIVE_SCHEDULE_ID] = settings.activeScheduleId
     }
 }
 
@@ -173,4 +182,59 @@ fun getEndTime(period: Int, settings: ScheduleSettings): String {
     val h = endMinutes / 60
     val m = endMinutes % 60
     return String.format("%02d:%02d", h, m)
+}
+
+/**
+ * 获取课表名映射。默认 {"default": "我的课表"}
+ */
+suspend fun loadScheduleNames(dataStore: DataStore<Preferences>): Map<String, String> {
+    val prefs = dataStore.data.first()
+    val json = prefs[SchedulePrefs.SCHEDULE_NAMES] ?: return mapOf("default" to "我的课表")
+    return try {
+        val obj = org.json.JSONObject(json)
+        val map = mutableMapOf<String, String>()
+        obj.keys().forEach { map[it] = obj.getString(it) }
+        if (map.isEmpty()) mapOf("default" to "我的课表") else map
+    } catch (_: Exception) {
+        mapOf("default" to "我的课表")
+    }
+}
+
+/**
+ * 保存课表名映射
+ */
+suspend fun saveScheduleNames(dataStore: DataStore<Preferences>, names: Map<String, String>) {
+    val obj = org.json.JSONObject()
+    names.forEach { (k, v) -> obj.put(k, v) }
+    dataStore.edit { prefs ->
+        prefs[SchedulePrefs.SCHEDULE_NAMES] = obj.toString()
+    }
+}
+
+/**
+ * 新增课表
+ */
+suspend fun createSchedule(dataStore: DataStore<Preferences>, id: String, name: String) {
+    val names = loadScheduleNames(dataStore).toMutableMap()
+    names[id] = name
+    saveScheduleNames(dataStore, names)
+    // 切换到新课表
+    val settings = loadScheduleSettings(dataStore)
+    saveScheduleSettings(dataStore, settings.copy(activeScheduleId = id))
+}
+
+/**
+ * 删除课表（不可删除最后一个）
+ */
+suspend fun deleteScheduleProfile(dataStore: DataStore<Preferences>, scheduleId: String): Boolean {
+    val names = loadScheduleNames(dataStore).toMutableMap()
+    if (names.size <= 1) return false
+    names.remove(scheduleId)
+    saveScheduleNames(dataStore, names)
+    // 如果删的是当前活跃的，切回 default
+    val settings = loadScheduleSettings(dataStore)
+    if (settings.activeScheduleId == scheduleId) {
+        saveScheduleSettings(dataStore, settings.copy(activeScheduleId = names.keys.first()))
+    }
+    return true
 }

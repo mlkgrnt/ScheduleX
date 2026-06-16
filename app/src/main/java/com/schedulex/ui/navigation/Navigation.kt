@@ -20,6 +20,7 @@ sealed class Screen(val route: String) {
     data object ImportPreview : Screen("import_preview")
     data object ScreenshotImport : Screen("screenshot_import")
     data object WebViewLogin : Screen("webview_login")
+    data object PdfImport : Screen("pdf_import")
 }
 
 data class BottomNavItem(

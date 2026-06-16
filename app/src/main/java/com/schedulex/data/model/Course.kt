@@ -8,6 +8,7 @@ data class Course(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val teacher: String? = null,
-    val color: String = "#4FC3F7",  // hex color
-    val createdAt: Long = System.currentTimeMillis()
+    val color: String = "#4FC3F7",
+    val createdAt: Long = System.currentTimeMillis(),
+    val scheduleId: String = "default"  // 课表ID，默认课表
 )

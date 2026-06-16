@@ -6,8 +6,14 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface CourseDao {
+    @Query("SELECT * FROM courses WHERE scheduleId = :scheduleId ORDER BY createdAt DESC")
+    fun getCoursesBySchedule(scheduleId: String): Flow<List<Course>>
+
     @Query("SELECT * FROM courses ORDER BY createdAt DESC")
     fun getAllCourses(): Flow<List<Course>>
+
+    @Query("SELECT * FROM courses WHERE scheduleId = :scheduleId ORDER BY createdAt DESC")
+    suspend fun getCoursesByScheduleSync(scheduleId: String): List<Course>
 
     @Query("SELECT * FROM courses ORDER BY createdAt DESC")
     suspend fun getAllCoursesSync(): List<Course>
@@ -26,4 +32,10 @@ interface CourseDao {
 
     @Query("DELETE FROM courses")
     suspend fun deleteAllCourses()
+
+    @Query("DELETE FROM courses WHERE scheduleId = :scheduleId")
+    suspend fun deleteCoursesBySchedule(scheduleId: String)
+
+    @Query("SELECT DISTINCT scheduleId FROM courses")
+    suspend fun getAllScheduleIds(): List<String>
 }

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.schedulex.data.db.AppDatabase
 import com.schedulex.data.repository.CourseRepository
+import com.schedulex.data.model.scheduleDataStore
 import com.schedulex.llm.LlmService
 import com.schedulex.llm.ParsedCourse
 import com.schedulex.ui.settings.LlmKeys
@@ -34,6 +35,18 @@ class ScheduleXApp : Application() {
     override fun onCreate() {
         super.onCreate()
         autoConfigureLlm()
+        // 启动时创建通知渠道并调度提醒
+        com.schedulex.reminder.ReminderReceiver.createNotificationChannel(this)
+        appScope.launch {
+            try {
+                val settings = com.schedulex.data.model.loadScheduleSettings(
+                    this@ScheduleXApp.scheduleDataStore
+                )
+                if (settings.reminderMinutes > 0) {
+                    com.schedulex.reminder.ReminderScheduler.scheduleReminders(this@ScheduleXApp)
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun autoConfigureLlm() {

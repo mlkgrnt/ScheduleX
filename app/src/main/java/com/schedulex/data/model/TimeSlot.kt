@@ -25,5 +25,6 @@ data class TimeSlot(
     val endPeriod: Int,     // ending period number (inclusive)
     val location: String? = null,
     val weeks: String,      // JSON array of week numbers: "[1,2,3,5,7]"
-    val type: WeekType = WeekType.ALL
+    val type: WeekType = WeekType.ALL,
+    val scheduleId: String = "default"  // 课表ID
 )

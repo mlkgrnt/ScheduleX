@@ -24,6 +24,7 @@ import com.schedulex.ui.settings.SettingsScreen
 import com.schedulex.ui.settings.LlmSettingsScreen
 import com.schedulex.ui.settings.TimeSettingsScreen
 import com.schedulex.ui.import_.WebViewLoginScreen
+import com.schedulex.ui.import_.PdfImportScreen
 import com.schedulex.ui.import_.ImportPreviewScreen
 import com.schedulex.ui.import_.ScreenshotImportScreen
 import com.schedulex.ui.navigation.Screen
@@ -105,6 +106,7 @@ fun ScheduleXApp() {
                     onNavigateToAddCourse = { navController.navigate(Screen.AddCourse.route) },
                     onNavigateToImport = { navController.navigate(Screen.ImportSchedule.route) },
                     onNavigateToScreenshotImport = { navController.navigate(Screen.ScreenshotImport.route) },
+                    onNavigateToPdfImport = { navController.navigate(Screen.PdfImport.route) },
                     onNavigateToEditCourse = { courseId ->
                         navController.navigate(Screen.EditCourse.createRoute(courseId))
                     }
@@ -136,7 +138,8 @@ fun ScheduleXApp() {
                     onNavigateToLlmSettings = { navController.navigate(Screen.LlmSettings.route) },
                     onNavigateToImport = { navController.navigate(Screen.ImportSchedule.route) },
                     onNavigateToTimeSettings = { navController.navigate(Screen.TimeSettings.route) },
-                    onNavigateToScreenshotImport = { navController.navigate(Screen.ScreenshotImport.route) }
+                    onNavigateToScreenshotImport = { navController.navigate(Screen.ScreenshotImport.route) },
+                    onNavigateToPdfImport = { navController.navigate(Screen.PdfImport.route) }
                 )
             }
             composable(Screen.LlmSettings.route) {
@@ -163,6 +166,14 @@ fun ScheduleXApp() {
             }
             composable(Screen.ScreenshotImport.route) {
                 ScreenshotImportScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPreview = {
+                        navController.navigate(Screen.ImportPreview.route)
+                    }
+                )
+            }
+            composable(Screen.PdfImport.route) {
+                PdfImportScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToPreview = {
                         navController.navigate(Screen.ImportPreview.route)

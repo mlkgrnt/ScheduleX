@@ -4,16 +4,48 @@ import androidx.room.*
 import com.schedulex.data.model.TimeSlot
 import kotlinx.coroutines.flow.Flow
 
+data class TimeSlotWithCourseName(
+    val id: Long,
+    val courseId: Long,
+    val day: Int,
+    val startPeriod: Int,
+    val endPeriod: Int,
+    val weeks: String,
+    val type: String,
+    val courseName: String
+)
+
 @Dao
 interface TimeSlotDao {
     @Query("SELECT * FROM time_slots WHERE courseId = :courseId")
     fun getTimeSlotsForCourse(courseId: Long): Flow<List<TimeSlot>>
 
+    @Query("SELECT * FROM time_slots WHERE scheduleId = :scheduleId")
+    fun getTimeSlotsBySchedule(scheduleId: String): Flow<List<TimeSlot>>
+
     @Query("SELECT * FROM time_slots")
     fun getAllTimeSlots(): Flow<List<TimeSlot>>
 
+    @Query("SELECT * FROM time_slots WHERE scheduleId = :scheduleId")
+    suspend fun getTimeSlotsByScheduleSync(scheduleId: String): List<TimeSlot>
+
     @Query("SELECT * FROM time_slots")
     suspend fun getAllTimeSlotsSync(): List<TimeSlot>
+
+    @Query("""
+        SELECT ts.id, ts.courseId, ts.day, ts.startPeriod, ts.endPeriod, ts.weeks, ts.type, c.name AS courseName
+        FROM time_slots ts
+        INNER JOIN courses c ON ts.courseId = c.id
+        WHERE ts.scheduleId = :scheduleId
+    """)
+    suspend fun getTimeSlotsWithCourseNameBySchedule(scheduleId: String): List<TimeSlotWithCourseName>
+
+    @Query("""
+        SELECT ts.id, ts.courseId, ts.day, ts.startPeriod, ts.endPeriod, ts.weeks, ts.type, c.name AS courseName
+        FROM time_slots ts
+        INNER JOIN courses c ON ts.courseId = c.id
+    """)
+    suspend fun getAllTimeSlotsWithCourseName(): List<TimeSlotWithCourseName>
 
     @Query("SELECT * FROM time_slots WHERE day = :day")
     fun getTimeSlotsByDay(day: Int): Flow<List<TimeSlot>>
@@ -35,4 +67,7 @@ interface TimeSlotDao {
 
     @Query("DELETE FROM time_slots")
     suspend fun deleteAllTimeSlots()
+
+    @Query("DELETE FROM time_slots WHERE scheduleId = :scheduleId")
+    suspend fun deleteTimeSlotsBySchedule(scheduleId: String)
 }

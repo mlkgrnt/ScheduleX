@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,9 +21,12 @@ import com.schedulex.ScheduleXApp
 import com.schedulex.data.model.Course
 import com.schedulex.data.model.TimeSlot
 import com.schedulex.data.model.WeekType
+import com.schedulex.data.repository.PendingSlotInfo
 import com.schedulex.ui.components.ColorPicker
 import com.schedulex.ui.components.courseColors
 import com.schedulex.widget.refreshAllWidgets
+import com.schedulex.data.model.scheduleDataStore
+import com.schedulex.data.model.loadScheduleSettings
 import kotlinx.coroutines.launch
 
 private val dayOptions = listOf(
@@ -58,14 +62,15 @@ data class PendingTimeSlot(
     val weekType: WeekType,
     val location: String
 ) {
-    fun toTimeSlot(courseId: Long): TimeSlot = TimeSlot(
+    fun toTimeSlot(courseId: Long, scheduleId: String = "default"): TimeSlot = TimeSlot(
         courseId = courseId,
         day = day,
         startPeriod = startPeriod,
         endPeriod = endPeriod,
         weeks = weeks.toString(),
         type = weekType,
-        location = location.ifBlank { null }
+        location = location.ifBlank { null },
+        scheduleId = scheduleId
     )
 
     fun displayText(): String {
@@ -85,12 +90,54 @@ data class PendingTimeSlot(
     }
 }
 
+/**
+ * 时间安排卡片：点击编辑，右侧删除按钮
+ */
+@Composable
+fun TimeSlotCard(
+    slot: PendingTimeSlot,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        onClick = onEdit,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = slot.displayText(),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                if (slot.location.isNotBlank()) {
+                    Text(
+                        text = "📍 ${slot.location}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "删除",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCourseScreen(
     onNavigateBack: () -> Unit
 ) {
     val app = LocalContext.current.applicationContext as ScheduleXApp
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf("") }
@@ -98,8 +145,10 @@ fun AddCourseScreen(
     var selectedColor by remember { mutableStateOf(courseColors[0]) }
     var pendingSlots by remember { mutableStateOf(listOf<PendingTimeSlot>()) }
     var showSlotDialog by remember { mutableStateOf(false) }
+    var editingSlotIndex by remember { mutableStateOf<Int?>(null) }
     var nameError by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var conflictError by remember { mutableStateOf<String?>(null) }
 
     Scaffold(
         topBar = {
@@ -177,7 +226,10 @@ fun AddCourseScreen(
                         fontWeight = FontWeight.Medium
                     )
                     FilledTonalButton(
-                        onClick = { showSlotDialog = true },
+                        onClick = {
+                            editingSlotIndex = null
+                            showSlotDialog = true
+                        },
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -199,39 +251,16 @@ fun AddCourseScreen(
             }
 
             itemsIndexed(pendingSlots) { index, slot ->
-                Card(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = slot.displayText(),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            if (slot.location.isNotBlank()) {
-                                Text(
-                                    text = "📍 ${slot.location}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        IconButton(
-                            onClick = {
-                                pendingSlots = pendingSlots.toMutableList().apply { removeAt(index) }
-                            }
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "删除",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                TimeSlotCard(
+                    slot = slot,
+                    onEdit = {
+                        editingSlotIndex = index
+                        showSlotDialog = true
+                    },
+                    onDelete = {
+                        pendingSlots = pendingSlots.toMutableList().apply { removeAt(index) }
                     }
-                }
+                )
             }
 
             // Save button
@@ -245,12 +274,31 @@ fun AddCourseScreen(
                         }
                         isSaving = true
                         scope.launch {
+                            val scheduleId = loadScheduleSettings(context.scheduleDataStore).activeScheduleId
+                            // 冲突检查
+                            for (slot in pendingSlots) {
+                                val conflict = app.courseRepository.findConflict(
+                                    PendingSlotInfo(slot.day, slot.startPeriod, slot.endPeriod, slot.weeks, slot.weekType),
+                                    scheduleId = scheduleId
+                                )
+                                if (conflict != null) {
+                                    val dayName = dayOptions.firstOrNull { it.first == slot.day }?.second ?: "?"
+                                    val periodText = if (slot.startPeriod == slot.endPeriod)
+                                        "第${slot.startPeriod}节"
+                                    else "第${slot.startPeriod}-${slot.endPeriod}节"
+                                    conflictError = "$dayName$periodText 与 $conflict 时间冲突"
+                                    isSaving = false
+                                    return@launch
+                                }
+                            }
+
                             val course = Course(
                                 name = name.trim(),
                                 teacher = teacher.trim().ifBlank { null },
-                                color = selectedColor
+                                color = selectedColor,
+                                scheduleId = scheduleId
                             )
-                            val timeSlots = pendingSlots.map { it.toTimeSlot(0) }
+                            val timeSlots = pendingSlots.map { it.toTimeSlot(0, scheduleId) }
                             app.courseRepository.insertCourseWithTimeSlots(course, timeSlots)
                             refreshAllWidgets(app)
                             isSaving = false
@@ -274,36 +322,76 @@ fun AddCourseScreen(
         }
     }
 
-    // Time slot dialog
+    // Time slot dialog（添加 or 编辑）
     if (showSlotDialog) {
         AddTimeSlotDialog(
-            onDismiss = { showSlotDialog = false },
-            onConfirm = { slot ->
-                pendingSlots = pendingSlots + slot
+            initialSlot = editingSlotIndex?.let { pendingSlots.getOrNull(it) },
+            onDismiss = {
                 showSlotDialog = false
+                editingSlotIndex = null
+            },
+            onConfirm = { slot ->
+                val idx = editingSlotIndex
+                if (idx != null) {
+                    // 编辑模式：替换对应位置
+                    pendingSlots = pendingSlots.toMutableList().apply { set(idx, slot) }
+                } else {
+                    // 添加模式
+                    pendingSlots = pendingSlots + slot
+                }
+                showSlotDialog = false
+                editingSlotIndex = null
+            }
+        )
+    }
+
+    // 冲突错误弹窗
+    conflictError?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { conflictError = null },
+            title = { Text("时间冲突") },
+            text = { Text(msg) },
+            confirmButton = {
+                TextButton(onClick = { conflictError = null }) {
+                    Text("确定")
+                }
             }
         )
     }
 }
 
+/**
+ * 添加/编辑时间安排对话框
+ * initialSlot 为 null 时是添加模式，非 null 时是编辑模式（预填数据）
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddTimeSlotDialog(
+    initialSlot: PendingTimeSlot? = null,
     onDismiss: () -> Unit,
     onConfirm: (PendingTimeSlot) -> Unit
 ) {
-    var selectedDay by remember { mutableIntStateOf(1) }
-    var startPeriod by remember { mutableStateOf("1") }
-    var endPeriod by remember { mutableStateOf("2") }
-    var weeksInput by remember { mutableStateOf("1-16") }
-    var location by remember { mutableStateOf("") }
-    var weekType by remember { mutableStateOf(WeekType.ALL) }
+    var selectedDay by remember { mutableIntStateOf(initialSlot?.day ?: 1) }
+    var startPeriod by remember { mutableStateOf(initialSlot?.startPeriod?.toString() ?: "1") }
+    var endPeriod by remember { mutableStateOf(initialSlot?.endPeriod?.toString() ?: "2") }
+    var weeksInput by remember {
+        mutableStateOf(
+            initialSlot?.let { slot ->
+                if (slot.weeks.size <= 5) slot.weeks.joinToString(",")
+                else "${slot.weeks.first()}-${slot.weeks.last()}"
+            } ?: "1-16"
+        )
+    }
+    var location by remember { mutableStateOf(initialSlot?.location ?: "") }
+    var weekType by remember { mutableStateOf(initialSlot?.weekType ?: WeekType.ALL) }
     var expandedDay by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val isEdit = initialSlot != null
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加时间安排") },
+        title = { Text(if (isEdit) "编辑时间安排" else "添加时间安排") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Day selector
