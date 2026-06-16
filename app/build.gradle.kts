@@ -17,6 +17,15 @@ android {
         versionName = "0.7.8"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../schedulex.jks")
+            storePassword = "schedulex123"
+            keyAlias = "schedulex"
+            keyPassword = "schedulex123"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -25,6 +34,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
