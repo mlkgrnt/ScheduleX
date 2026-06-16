@@ -7,21 +7,21 @@
 > 一款开源、无广告、永久免费的 Android 课程表应用
 
 <p align="center">
-  <img src="docs/screenshot_schedule.png" width="280" alt="课表界面" />
-  &nbsp;&nbsp;
-  <img src="docs/screenshot_widget.png" width="280" alt="桌面小组件" />
+  <img src="docs/preview.jpg" width="800" alt="ScheduleX 预览" />
 </p>
 
 ## ✨ 特性
 
 - 🚫 **永久免费，无广告** — 不追踪、不弹窗、不内购
 - 🤖 **智能导入** — 输入教务系统网址，自动识别并导入课表
-- 📸 **截图导入** — 拍一张课表截图，AI 自动识别课程信息
+- 📸 **截图/ PDF 导入** — 拍一张课表截图或选择 PDF，AI 自动识别课程信息
 - 🏫 **多教务系统适配** — 支持强智、正方、URP、金智等主流系统
-- 🎨 **Material 3 设计** — 现代化 UI，支持深色模式
-- 📱 **桌面小组件** — 2×2 小课表 + 4×4 大课表，今日/明日课程一目了然
+- 📋 **多课表管理** — 支持创建、切换、重命名多个课表
+- 🎨 **Material 3 设计** — 现代化 UI，支持深色模式，12 种课程配色
+- 📱 **桌面小组件** — 2×2 小课表 + 4×2 大课表，今日/明日课程一目了然
+- ⏰ **课前提醒** — 可选 5/10/15/30 分钟提醒，不错过每一节课
 - 🔒 **本地存储** — 所有数据保存在手机本地，不上传任何信息
-- ⚡ **轻量极速** — 纯 Kotlin + Jetpack Compose，安装包不到 20MB
+- ⚡ **轻量极速** — 纯 Kotlin + Jetpack Compose，安装包仅 4MB
 
 ## 📥 下载
 
@@ -37,6 +37,7 @@
 
 如果自动解析失败，可以：
 - 使用 **截图导入** — 截一张课表图片，AI 识别
+- 使用 **PDF 导入** — 选择课表 PDF 文件，AI 识别
 - **手动添加** — 点击 **+** 手动录入课程
 
 ## 🏫 支持的教务系统
@@ -57,6 +58,7 @@
 - **UI 框架**: Jetpack Compose + Material 3
 - **架构**: MVVM
 - **本地存储**: Room + DataStore
+- **AI 解析**: MiMo v2.5 Pro
 - **最低版本**: Android 8.0 (API 26)
 
 ## 📦 项目结构
@@ -68,10 +70,10 @@ app/src/main/java/com/schedulex/
 │   ├── home/      # 课表主页
 │   ├── course/    # 课程管理
 │   ├── settings/  # 设置页面
-│   ├── import_/   # 导入功能
-│   └── widget/    # 桌面小组件
+│   └── import_/   # 导入功能
 ├── llm/           # AI 解析引擎
-└── widget/        # 桌面小组件
+├── widget/        # 桌面小组件
+└── reminder/      # 课前提醒
 ```
 
 ## 🤝 贡献
