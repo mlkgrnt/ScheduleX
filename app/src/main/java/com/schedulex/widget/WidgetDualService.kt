@@ -107,16 +107,28 @@ class WidgetDualFactory(
                     if (slot.type.name == "ODD" && targetWeek % 2 == 0) continue
                     if (slot.type.name == "EVEN" && targetWeek % 2 == 1) continue
 
+                    // 获取真实开始/结束时间
                     val start = getStartTime(slot.startPeriod, settings)
                     val end = getEndTime(slot.endPeriod, settings)
 
-                    if (isToday && start.isNotEmpty()) {
-                        val parts = start.split(":")
-                        if (parts.size == 2) {
-                            val sMin = (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 0)
-                            val dur = if (settings.useSameDuration) settings.classDuration
-                                      else settings.periodDurations.getOrElse(slot.endPeriod - 1) { 45 }
-                            if (nowMinutes >= sMin + dur) continue
+                    // 只有今天才判断是否已下课；明天的课全部显示
+                    if (isToday && end.isNotEmpty()) {
+                        val eParts = end.split(":")
+                        if (eParts.size == 2) {
+                            val eMin = (eParts[0].toIntOrNull() ?: 0) * 60 + (eParts[1].toIntOrNull() ?: 0)
+                            if (nowMinutes >= eMin) continue  // 已下课，跳过
+                        }
+                    }
+
+                    // 判断是否正在上课（仅今天）
+                    var inClass = false
+                    if (isToday && start.isNotEmpty() && end.isNotEmpty()) {
+                        val sParts = start.split(":")
+                        val eParts = end.split(":")
+                        if (sParts.size == 2 && eParts.size == 2) {
+                            val sMin = (sParts[0].toIntOrNull() ?: 0) * 60 + (sParts[1].toIntOrNull() ?: 0)
+                            val eMin = (eParts[0].toIntOrNull() ?: 0) * 60 + (eParts[1].toIntOrNull() ?: 0)
+                            if (nowMinutes in sMin until eMin) inClass = true
                         }
                     }
 
@@ -124,7 +136,8 @@ class WidgetDualFactory(
                         if (end.isNotEmpty()) "$start-$end" else start
                     } else "第${slot.startPeriod}-${slot.endPeriod}节"
 
-                    result.add(CourseItem(course.name, time, slot.location ?: "", slot.startPeriod, colorInt))
+                    val displayName = if (inClass) "${course.name}(上课中)" else course.name
+                    result.add(CourseItem(displayName, time, slot.location ?: "", slot.startPeriod, colorInt))
                 }
             }
             result.sortedBy { it.startNode }

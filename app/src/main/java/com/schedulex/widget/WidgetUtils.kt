@@ -1,9 +1,12 @@
 package com.schedulex.widget
 
 import android.content.Context
+import com.schedulex.data.db.AppDatabase
+import com.schedulex.data.model.calculateActualWeek
 import com.schedulex.data.model.loadScheduleSettings
 import com.schedulex.data.model.scheduleDataStore
 import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
 import java.util.Calendar
 
 fun getDayOfWeekStr(calendar: Calendar): String {
@@ -73,6 +76,35 @@ val WIDGET_LOCATION_LIGHT = 0xFF999999.toInt()
 val WIDGET_DIVIDER_DARK = 0xFF424242.toInt()
 /** 浅色模式分割线 */
 val WIDGET_DIVIDER_LIGHT = 0xFFDDDDDD.toInt()
+
+/**
+ * 检查指定星期几在当前周是否有课程（不论是否已结束）
+ * 用于小组件空状态文案判断
+ */
+fun hasCoursesForDay(context: Context, dayOfWeek: Int, week: Int): Boolean {
+    return try {
+        val db = AppDatabase.getDatabase(context)
+        val settings = runBlocking { loadScheduleSettings(context.scheduleDataStore) }
+        val allCourses = runBlocking { db.courseDao().getAllCoursesSync() }
+        val allSlots = runBlocking { db.timeSlotDao().getAllTimeSlotsSync() }
+
+        for (course in allCourses) {
+            for (slot in allSlots.filter { it.courseId == course.id }) {
+                if (slot.day != dayOfWeek) continue
+                val weeks = try {
+                    JSONArray(slot.weeks).let { a -> (0 until a.length()).map { a.getInt(it) } }
+                } catch (_: Exception) { emptyList() }
+                if (week !in weeks) continue
+                if (slot.type.name == "ODD" && week % 2 == 0) continue
+                if (slot.type.name == "EVEN" && week % 2 == 1) continue
+                return true
+            }
+        }
+        false
+    } catch (_: Exception) {
+        false
+    }
+}
 
 /**
  * 刷新所有小组件（2×2 + 4×2）

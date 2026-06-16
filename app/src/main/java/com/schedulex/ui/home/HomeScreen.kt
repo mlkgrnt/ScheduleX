@@ -340,19 +340,163 @@ private fun ScheduleGrid(
         }
     }
 
-    val hScrollState = rememberScrollState()
+    // 网格总尺寸
+    val gridWidth = cellWidth * TOTAL_DAYS
+    val gridHeight = cellHeight * totalPeriods
 
-    Column {
-        // Day header row - fixed at top
-        Row(modifier = Modifier.horizontalScroll(hScrollState)) {
-            // Corner cell
-            Box(
-                modifier = Modifier.size(periodLabelWidth, headerHeight),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("节", style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+    // 双向滚动状态
+    val hScrollState = rememberScrollState()
+    val vScrollState = rememberScrollState()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(max = 500.dp)
+    ) {
+        // 1. 网格本体：双向滚动
+        Column(
+            modifier = Modifier
+                .verticalScroll(vScrollState)
+        ) {
+            // 表头行占位（让网格内容往下推，表头区域留空）
+            Spacer(modifier = Modifier.height(headerHeight))
+            Row(modifier = Modifier.horizontalScroll(hScrollState)) {
+                // 左侧时间列占位
+                Spacer(modifier = Modifier.width(periodLabelWidth))
+                // Grid cells with course blocks
+                for (d in 1..TOTAL_DAYS) {
+                    Column {
+                        var skipUntil = 0
+                        for (p in 1..totalPeriods) {
+                            if (p < skipUntil) continue
+                            val block = blocks.find { it.slot.day == d && it.slot.startPeriod == p }
+                            if (block != null) {
+                                val spanCount = block.slot.endPeriod - block.slot.startPeriod + 1
+                                skipUntil = p + spanCount
+                                val color = blockColors[block] ?: Color(0xFF4FC3F7)
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(cellWidth)
+                                        .height(cellHeight * spanCount)
+                                        .padding(1.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(color.copy(alpha = 0.88f))
+                                        .clickable { onCourseClick(block.course.id) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = block.course.name,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                            textAlign = TextAlign.Center,
+                                            fontSize = if (spanCount >= 2) 10.sp else 8.sp,
+                                            lineHeight = if (spanCount >= 2) 12.sp else 10.sp
+                                        )
+                                        if (!block.slot.location.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(1.dp))
+                                            Text(
+                                                text = block.slot.location!!,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                maxLines = 3,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 7.sp,
+                                                textAlign = TextAlign.Center,
+                                                lineHeight = 9.sp
+                                            )
+                                        }
+                                        if (!block.course.teacher.isNullOrBlank()) {
+                                            Spacer(modifier = Modifier.height(1.dp))
+                                            val teacherText = block.course.teacher!!
+                                            val displayText = if (teacherText.contains(" ") && teacherText.length > 4) {
+                                                teacherText.replaceFirst(" ", "\n")
+                                            } else teacherText
+                                            Text(
+                                                text = displayText,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                fontSize = 7.sp,
+                                                textAlign = TextAlign.Center,
+                                                lineHeight = 9.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Empty cell
+                                Box(
+                                    modifier = Modifier
+                                        .width(cellWidth)
+                                        .height(cellHeight)
+                                )
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        // 2. 左侧时间列：垂直跟随网格滚动，水平固定
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .verticalScroll(vScrollState)
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
+            // 表头高度的占位
+            Spacer(modifier = Modifier.height(headerHeight))
+            for (p in 1..totalPeriods) {
+                Box(
+                    modifier = Modifier.size(periodLabelWidth, cellHeight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "$p",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = getStartTime(p, scheduleSettings),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 7.sp
+                        )
+                        Text(
+                            text = getEndTime(p, scheduleSettings),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontSize = 7.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. 日 header：水平跟随网格滚动，垂直固定在顶部
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .horizontalScroll(hScrollState)
+                .background(MaterialTheme.colorScheme.surface)
+        ) {
+            // 左上角固定格（纯占位，无文字）
+            Box(modifier = Modifier.size(periodLabelWidth, headerHeight))
             dayLabels.forEach { label ->
                 Box(
                     modifier = Modifier.width(cellWidth).height(headerHeight),
@@ -363,125 +507,6 @@ private fun ScheduleGrid(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium
                     )
-                }
-            }
-        }
-
-        // Grid body
-        Row(modifier = Modifier.horizontalScroll(hScrollState)) {
-            // Period labels column
-            Column {
-                for (p in 1..totalPeriods) {
-                    Box(
-                        modifier = Modifier.size(periodLabelWidth, cellHeight),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "$p",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = getStartTime(p, scheduleSettings),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 7.sp
-                            )
-                            Text(
-                                text = getEndTime(p, scheduleSettings),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                fontSize = 7.sp
-                            )
-                        }
-                    }
-                }
-            }
-            
-            // Grid cells with course blocks
-            for (d in 1..TOTAL_DAYS) {
-                Column {
-                    var skipUntil = 0  // 跳过被多节课程块覆盖的空行
-                    for (p in 1..totalPeriods) {
-                        if (p < skipUntil) continue  // 被前面的课程块覆盖，跳过
-                        val block = blocks.find { it.slot.day == d && it.slot.startPeriod == p }
-                        if (block != null) {
-                            val spanCount = block.slot.endPeriod - block.slot.startPeriod + 1
-                            skipUntil = p + spanCount  // 标记后续需要跳过的节
-                            val color = blockColors[block] ?: Color(0xFF4FC3F7)
-                            
-                            Box(
-                                modifier = Modifier
-                                    .width(cellWidth)
-                                    .height(cellHeight * spanCount)
-                                    .padding(1.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(color.copy(alpha = 0.88f))
-                                    .clickable { onCourseClick(block.course.id) },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        text = block.course.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        fontSize = if (spanCount >= 2) 10.sp else 8.sp,
-                                        lineHeight = if (spanCount >= 2) 12.sp else 10.sp
-                                    )
-                                    if (!block.slot.location.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Text(
-                                            text = block.slot.location!!,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White.copy(alpha = 0.8f),
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            fontSize = 7.sp,
-                                            textAlign = TextAlign.Center,
-                                            lineHeight = 9.sp
-                                        )
-                                    }
-                                    if (!block.course.teacher.isNullOrBlank()) {
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Text(
-                                            text = block.course.teacher!!,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color.White.copy(alpha = 0.7f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            fontSize = 7.sp,
-                                            textAlign = TextAlign.Center,
-                                            lineHeight = 9.sp
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            // Empty cell
-                            Box(
-                                modifier = Modifier
-                                    .size(cellWidth, cellHeight)
-                                    .padding(0.5.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f),
-                                        RoundedCornerShape(2.dp)
-                                    )
-                            )
-                        }
-                    }
                 }
             }
         }

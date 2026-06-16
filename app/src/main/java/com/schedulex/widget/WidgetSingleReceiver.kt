@@ -58,9 +58,12 @@ class WidgetSingleReceiver : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_course_single)
             val isDark = isWidgetDarkMode(context)
 
+            val settings = try {
+                runBlocking { loadScheduleSettings(context.scheduleDataStore) }
+            } catch (e: Exception) { null }
+
             val currentWeek = try {
-                val settings = runBlocking { loadScheduleSettings(context.scheduleDataStore) }
-                calculateActualWeek(settings)
+                if (settings != null) calculateActualWeek(settings) else 1
             } catch (e: Exception) { 1 }
 
             val calendar = Calendar.getInstance()
@@ -81,6 +84,13 @@ class WidgetSingleReceiver : AppWidgetProvider() {
             views.setTextColor(R.id.widget_title, titleColor)
             views.setTextColor(R.id.widget_empty_text, emptyColor)
             views.setInt(R.id.widget_root, "setBackgroundColor", bgColor)
+
+            // 判断空状态文案
+            val todayDow = if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) 7
+                           else calendar.get(Calendar.DAY_OF_WEEK) - 1
+            val hasTodayCourses = hasCoursesForDay(context, todayDow, currentWeek)
+            val emptyText = if (hasTodayCourses) "今天的课上完咯🎉" else "今天没课🎉"
+            views.setTextViewText(R.id.widget_empty_text, emptyText)
 
             val intent = Intent(context, WidgetCourseListService::class.java)
             intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)

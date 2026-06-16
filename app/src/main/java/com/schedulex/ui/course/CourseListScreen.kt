@@ -198,6 +198,15 @@ private fun CourseListItem(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                // 显示上课地点（去重）
+                val locations = slots.mapNotNull { it.location?.takeIf { l -> l.isNotBlank() } }.distinct()
+                if (locations.isNotEmpty()) {
+                    Text(
+                        text = "📍 ${locations.joinToString("、")}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = formatScheduleSummary(slots),
