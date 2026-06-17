@@ -60,7 +60,6 @@
 - **UI 框架**: Jetpack Compose + Material 3
 - **架构**: MVVM
 - **本地存储**: Room + DataStore
-- **AI 解析**: MiMo v2.5 Pro
 - **最低版本**: Android 8.0 (API 26)
 
 ## 📦 项目结构
